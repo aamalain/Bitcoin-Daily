@@ -1,0 +1,14 @@
+name = Bitcoin Exchange Rate
+description = Provides daily exchagne rates for Bitcoin
+core = 7.x
+package = Crypto
+dependencies[] = features
+dependencies[] = number
+dependencies[] = text
+features[features_api][] = api:2
+features[field_base][] = body
+features[field_base][] = field_bitcoin_usd_rate
+features[field_instance][] = node-bitcoin_daily-body
+features[field_instance][] = node-bitcoin_daily-field_bitcoin_usd_rate
+features[node][] = bitcoin_daily
+tags[] = crypto

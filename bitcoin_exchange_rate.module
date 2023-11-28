@@ -1,0 +1,66 @@
+<?php
+
+/**
+ * @file
+ * Primary hook implementations for Bitcoin Exchange Rate.
+ */
+
+include_once 'bitcoin_exchange_rate.features.inc';
+
+/**
+ * Implements hook_help().
+ */
+function bitcoin_exchange_rate_help($path, $arg) {
+  if ($path == 'admin/help#bitcoin_exchange_rate') {
+    $output = '';
+    $output .= '<h3>' . t('About') . '</h3>';
+    $output .=  t('The Bitcoin Exchange Rate module provides a "Bitcoin Daily" content type with the following fields:');
+    $output .= '<dl>';
+    $output .= '<dt>' . t('Title') . '</dt>';
+    $output .= '<dt>' . t('Body') . '</dt>';
+    $output .= '<dt>' . t('Todays Bitcoin Rate in USD') . '</dt>';
+    $output .= '<dd>';
+    $output .= t('This field will be automatically completed when a new node is created by fetching the API: <a href="@api_url" target="_blank">@api_url</a>', ['@api_url' => 'https://api.coindesk.com/v1/bpi/currentprice.json']);
+    $output .= '<br />' . t('In case the field is not empty then its value will not be overwritten');
+    $output .= '<br />' . t('The automate completion is implemented by using <em>hook_node_presave</em> and checking <em>bitcoin_daily</em> node type');
+    $output .= '</dd>';
+    $output .= '</dl>';
+    return $output;
+  }
+}
+
+/**
+ * Implements hook_node_presave().
+ *
+ * On new node set field_bitcoin_usd_rate value with current Bitcoin exchange rate.
+ */
+function bitcoin_exchange_rate_node_presave($node) {
+  // Check if the node is of type 'bitcoin_daily' and if bitcoin value is empty.
+  if (!empty($node->is_new) && $node->type == 'bitcoin_daily' && empty($node->field_bitcoin_usd_rate[LANGUAGE_NONE])) {
+    // Fetch the Bitcoin exchange rate.
+    $exchange_rate = bitcoin_exchange_rate_fetch_current_usd_price();
+    // If the exchange rate is fetched successfully, update the node field.
+    if ($exchange_rate !== FALSE) {
+      $node->field_bitcoin_usd_rate[LANGUAGE_NONE][0]['value'] = $exchange_rate;
+    }
+  }
+}
+
+/**
+ * Function to fetch the Bitcoin rate in USD.
+ */
+function bitcoin_exchange_rate_fetch_current_usd_price() {
+  $url = 'https://api.coindesk.com/v1/bpi/currentprice.json';
+  $response = drupal_http_request($url);
+  if ($response->code == 200) {
+    $data = json_decode($response->data);
+    return $data->bpi->USD->rate_float;
+  }
+  else {
+    // Add error log.
+    $error = $response->data ?? ($response->error ?? '');
+    watchdog('bitcoin_exchange_rate', 'Error executing drupal_http_request() to %url: %error.', array('%url' => $url, '%error' => $error), WATCHDOG_ERROR);
+  }
+
+  return FALSE;
+}
